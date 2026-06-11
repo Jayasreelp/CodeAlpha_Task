@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SocialApp - Profile</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <h1>📱 SocialApp</h1>
+    <div class="nav-links">
+      <a href="/">Home</a>
+      <a href="#" onclick="logout()">Logout</a>
+    </div>
+  </nav>
+
+  <div class="main-container">
+
+    <!-- Profile Info -->
+    <div class="profile-box">
+      <div class="profile-avatar">👤</div>
+      <h2 id="profile-name"></h2>
+      <p id="profile-bio"></p>
+      <div class="profile-stats">
+        <div class="stat">
+          <h3 id="posts-count">0</h3>
+          <p>Posts</p>
+        </div>
+        <div class="stat">
+          <h3 id="followers-count">0</h3>
+          <p>Followers</p>
+        </div>
+        <div class="stat">
+          <h3 id="following-count">0</h3>
+          <p>Following</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- All Users -->
+    <div class="users-section">
+      <h3>👥 People to Follow</h3>
+      <div id="users-list"></div>
+    </div>
+
+    <!-- My Posts -->
+    <div class="my-posts">
+      <h3>📝 My Posts</h3>
+      <div id="my-posts-list"></div>
+    </div>
+
+  </div>
+
+  <script>
+    const token = localStorage.getItem('token');
+    const userId = localStorage.getItem('userId');
+    const name = localStorage.getItem('name');
+
+    if (!token) {
+      window.location.href = '/login';
+    }
+
+    // Load profile
+    async function loadProfile() {
+      const res = await fetch(`/profile/${userId}`);
+      const data = await res.json();
+
+      document.getElementById('profile-name').innerText = data.user.name;
+      document.getElementById('profile-bio').innerText = data.user.bio;
+      document.getElementById('posts-count').innerText = data.posts.length;
+      document.getElementById('followers-count').innerText = data.user.followers.length;
+      document.getElementById('following-count').innerText = data.user.following.length;
+
+      // Show my posts
+      const myPostsList = document.getElementById('my-posts-list');
+      if (data.posts.length === 0) {
+        myPostsList.innerHTML = '<p style="color:#666">No posts yet!</p>';
+      } else {
+        data.posts.forEach(post => {
+          myPostsList.innerHTML += `
+            <div class="post-card">
+              <p class="post-text">${post.text}</p>
+              <span class="post-date">${new Date(post.date).toLocaleDateString()}</span>
+              <span>❤️ ${post.likes.length} Likes</span>
+            </div>
+          `;
+        });
+      }
+    }
+
+    // Load all users
+    async function loadUsers() {
+      const res = await fetch('/users');
+      const users = await res.json();
+      const usersList = document.getElementById('users-list');
+
+      users.forEach(user => {
+        if (user._id !== userId) {
+          usersList.innerHTML += `
+            <div class="user-card">
+              <span>👤 ${user.name}</span>
+              <button onclick="followUser('${user._id}')">Follow +</button>
+            </div>
+          `;
+        }
+      });
+    }
+
+    // Follow user
+    async function followUser(followId) {
+      await fetch('/follow', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, followId })
+      });
+      alert('Followed successfully!');
+      loadProfile();
+    }
+
+    // Logout
+    function logout() {
+      localStorage.clear();
+      window.location.href = '/login';
+    }
+
+    loadProfile();
+    loadUsers();
+  </script>
+
+</body>
+</html>

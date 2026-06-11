@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ProjectHub - Tasks</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <h1>📋 ProjectHub</h1>
+    <div class="nav-links">
+      <a href="/">← Dashboard</a>
+      <a href="#" onclick="logout()">Logout</a>
+    </div>
+  </nav>
+
+  <div class="main-container">
+
+    <!-- Project Title -->
+    <h2 class="project-title" id="project-title"></h2>
+
+    <!-- Create Task -->
+    <div class="create-task">
+      <h3>➕ Add New Task</h3>
+      <input type="text" id="task-title" placeholder="Task Title" />
+      <input type="text" id="task-desc" placeholder="Task Description" />
+      <select id="task-assign">
+        <option value="Unassigned">Assign to...</option>
+      </select>
+      <button onclick="createTask()">Add Task</button>
+    </div>
+
+    <!-- Task Board -->
+    <div class="task-board">
+
+      <!-- To Do Column -->
+      <div class="column">
+        <div class="column-header todo-header">
+          📝 To Do
+          <span id="todo-count" class="count-badge">0</span>
+        </div>
+        <div id="todo-tasks" class="tasks-container"></div>
+      </div>
+
+      <!-- In Progress Column -->
+      <div class="column">
+        <div class="column-header progress-header">
+          ⚡ In Progress
+          <span id="progress-count" class="count-badge">0</span>
+        </div>
+        <div id="progress-tasks" class="tasks-container"></div>
+      </div>
+
+      <!-- Done Column -->
+      <div class="column">
+        <div class="column-header done-header">
+          ✅ Done
+          <span id="done-count" class="count-badge">0</span>
+        </div>
+        <div id="done-tasks" class="tasks-container"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    const token = localStorage.getItem('token');
+    const name = localStorage.getItem('name');
+    const userId = localStorage.getItem('userId');
+    const projectId = localStorage.getItem('projectId');
+    const projectName = localStorage.getItem('projectName');
+
+    if (!token) window.location.href = '/login';
+
+    document.getElementById('project-title').innerText = '📁 ' + projectName;
+
+    // Load users for assign dropdown
+    async function loadUsers() {
+      const res = await fetch('/users');
+      const users = await res.json();
+      const select = document.getElementById('task-assign');
+      users.forEach(user => {
+        select.innerHTML += `<option value="${user.name}">${user.name}</option>`;
+      });
+    }
+
+    // Load tasks
+    async function loadTasks() {
+      const res = await fetch(`/tasks/${projectId}`);
+      const tasks = await res.json();
+
+      document.getElementById('todo-tasks').innerHTML = '';
+      document.getElementById('progress-tasks').innerHTML = '';
+      document.getElementById('done-tasks').innerHTML = '';
+
+      let todoCount = 0, progressCount = 0, doneCount = 0;
+
+      tasks.forEach(task => {
+        const taskHTML = `
+          <div class="task-card">
+            <h4>${task.title}</h4>
+            <p>${task.description}</p>
+            <p class="assigned">👤 ${task.assignedTo}</p>
+            <div class="task-actions">
+              ${task.status !== 'todo' ? `<button onclick="updateTask('${task._id}', 'todo')" class="status-btn todo-btn">📝 To Do</button>` : ''}
+              ${task.status !== 'inprogress' ? `<button onclick="updateTask('${task._id}', 'inprogress')" class="status-btn progress-btn">⚡ In Progress</button>` : ''}
+              ${task.status !== 'done' ? `<button onclick="updateTask('${task._id}', 'done')" class="status-btn done-btn">✅ Done</button>` : ''}
+              <button onclick="deleteTask('${task._id}')" class="status-btn delete-btn">🗑️</button>
+            </div>
+            <div class="task-comments">
+              <h5>💬 Comments (${task.comments.length})</h5>
+              ${task.comments.map(c => `
+                <div class="comment">
+                  <strong>${c.author}:</strong> ${c.text}
+                </div>
+              `).join('')}
+              <div class="add-comment">
+                <input type="text" id="comment-${task._id}" placeholder="Add comment..." />
+                <button onclick="addComment('${task._id}')">Post</button>
+              </div>
+            </div>
+          </div>
+        `;
+
+        if (task.status === 'todo') {
+          document.getElementById('todo-tasks').innerHTML += taskHTML;
+          todoCount++;
+        } else if (task.status === 'inprogress') {
+          document.getElementById('progress-tasks').innerHTML += taskHTML;
+          progressCount++;
+        } else if (task.status === 'done') {
+          document.getElementById('done-tasks').innerHTML += taskHTML;
+          doneCount++;
+        }
+      });
+
+      document.getElementById('todo-count').innerText = todoCount;
+      document.getElementById('progress-count').innerText = progressCount;
+      document.getElementById('done-count').innerText = doneCount;
+    }
+
+    // Create task
+    async function createTask() {
+      const title = document.getElementById('task-title').value;
+      const description = document.getElementById('task-desc').value;
+      const assignedTo = document.getElementById('task-assign').value;
+      if (!title) return alert('Please enter task title!');
+
+      await fetch('/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, description, projectId, assignedTo })
+      });
+
+      document.getElementById('task-title').value = '';
+      document.getElementById('task-desc').value = '';
+      loadTasks();
+    }
+
+    // Update task status
+    async function updateTask(id, status) {
+      await fetch(`/tasks/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+      loadTasks();
+    }
+
+    // Delete task
+    async function deleteTask(id) {
+      if (!confirm('Delete this task?')) return;
+      await fetch(`/tasks/${id}`, { method: 'DELETE' });
+      loadTasks();
+    }
+
+    // Add comment
+    async function addComment(taskId) {
+      const text = document.getElementById(`comment-${taskId}`).value;
+      if (!text) return;
+      await fetch(`/tasks/${taskId}/comment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, author: name })
+      });
+      loadTasks();
+    }
+
+    // Logout
+    function logout() {
+      localStorage.clear();
+      window.location.href = '/login';
+    }
+
+    loadUsers();
+    loadTasks();
+  </script>
+
+</body>
+</html>

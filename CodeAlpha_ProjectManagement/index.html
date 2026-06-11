@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ProjectHub - Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <h1>📋 ProjectHub</h1>
+    <div class="nav-links">
+      <span id="username-display"></span>
+      <a href="/login" id="login-btn">Login</a>
+      <a href="#" id="logout-btn" onclick="logout()" style="display:none">Logout</a>
+    </div>
+  </nav>
+
+  <div class="main-container">
+
+    <!-- Create Project -->
+    <div class="create-project" id="create-project-box" style="display:none">
+      <h3>➕ Create New Project</h3>
+      <input type="text" id="project-name" placeholder="Project Name" />
+      <input type="text" id="project-desc" placeholder="Project Description" />
+      <button onclick="createProject()">Create Project</button>
+    </div>
+
+    <!-- Projects List -->
+    <h2 class="section-title">📁 All Projects</h2>
+    <div id="projects-list"></div>
+
+  </div>
+
+  <script>
+    const token = localStorage.getItem('token');
+    const name = localStorage.getItem('name');
+    const userId = localStorage.getItem('userId');
+
+    if (token) {
+      document.getElementById('username-display').innerText = 'Hi, ' + name;
+      document.getElementById('login-btn').style.display = 'none';
+      document.getElementById('logout-btn').style.display = 'inline';
+      document.getElementById('create-project-box').style.display = 'block';
+    }
+
+    // Load projects
+    async function loadProjects() {
+      const res = await fetch('/projects');
+      const projects = await res.json();
+      const list = document.getElementById('projects-list');
+      list.innerHTML = '';
+
+      if (projects.length === 0) {
+        list.innerHTML = '<p style="text-align:center;color:#666;margin-top:20px">No projects yet! Create your first project! 🚀</p>';
+        return;
+      }
+
+      projects.forEach(project => {
+        list.innerHTML += `
+          <div class="project-card">
+            <div class="project-header">
+              <h3>📁 ${project.name}</h3>
+              ${project.ownerId === userId ? `
+                <button onclick="deleteProject('${project._id}')" class="delete-btn">🗑️ Delete</button>
+              ` : ''}
+            </div>
+            <p>${project.description}</p>
+            <p class="project-owner">👤 Created by: ${project.owner}</p>
+            <p class="project-date">📅 ${new Date(project.date).toLocaleDateString()}</p>
+            <button onclick="openProject('${project._id}', '${project.name}')" class="open-btn">
+              Open Project →
+            </button>
+          </div>
+        `;
+      });
+    }
+
+    // Create project
+    async function createProject() {
+      const name_val = document.getElementById('project-name').value;
+      const desc = document.getElementById('project-desc').value;
+      if (!name_val) return alert('Please enter project name!');
+
+      await fetch('/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: name_val,
+          description: desc,
+          owner: name,
+          ownerId: userId
+        })
+      });
+
+      document.getElementById('project-name').value = '';
+      document.getElementById('project-desc').value = '';
+      loadProjects();
+    }
+
+    // Delete project
+    async function deleteProject(id) {
+      if (!confirm('Delete this project?')) return;
+      await fetch(`/projects/${id}`, { method: 'DELETE' });
+      loadProjects();
+    }
+
+    // Open project
+    function openProject(id, name) {
+      localStorage.setItem('projectId', id);
+      localStorage.setItem('projectName', name);
+      window.location.href = '/project';
+    }
+
+    // Logout
+    function logout() {
+      localStorage.clear();
+      location.reload();
+    }
+
+    loadProjects();
+  </script>
+
+</body>
+</html>

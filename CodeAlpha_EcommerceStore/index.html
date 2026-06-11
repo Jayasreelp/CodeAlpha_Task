@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ShopEasy - E-Commerce Store</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <h1>🛒 ShopEasy</h1>
+    <div class="nav-links">
+      <span id="username-display"></span>
+      <a href="/cart">🛍️ Cart (<span id="cart-count">0</span>)</a>
+      <a href="/login" id="login-btn">Login</a>
+      <a href="#" id="logout-btn" onclick="logout()" style="display:none">Logout</a>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <div class="hero">
+    <h2>Welcome to ShopEasy!</h2>
+    <p>Best products at best prices</p>
+  </div>
+
+  <!-- Products Section -->
+  <div class="container">
+    <h2 class="section-title">Our Products</h2>
+    <div id="products-grid" class="products-grid">
+      <!-- Products load here -->
+    </div>
+  </div>
+
+  <script>
+    // Check login
+    const token = localStorage.getItem('token');
+    const name = localStorage.getItem('name');
+    if (token) {
+      document.getElementById('username-display').innerText = 'Hi, ' + name;
+      document.getElementById('login-btn').style.display = 'none';
+      document.getElementById('logout-btn').style.display = 'inline';
+    }
+
+    // Update cart count
+    const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+    document.getElementById('cart-count').innerText = cart.length;
+
+    // Load products
+    fetch('/products')
+      .then(res => res.json())
+      .then(products => {
+        const grid = document.getElementById('products-grid');
+        if (products.length === 0) {
+          grid.innerHTML = '<p style="text-align:center">No products found. <a href="/seed">Click here to add sample products</a></p>';
+          return;
+        }
+        products.forEach(p => {
+          grid.innerHTML += `
+            <div class="product-card">
+              <img src="${p.image}" alt="${p.name}">
+              <h3>${p.name}</h3>
+              <p>${p.description}</p>
+              <p class="price">₹${p.price}</p>
+              <button onclick="addToCart('${p._id}', '${p.name}', ${p.price})">
+                Add to Cart 🛒
+              </button>
+            </div>
+          `;
+        });
+      });
+
+    // Add to cart
+    function addToCart(id, name, price) {
+      const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+      cart.push({ id, name, price });
+      localStorage.setItem('cart', JSON.stringify(cart));
+      document.getElementById('cart-count').innerText = cart.length;
+      alert(name + ' added to cart!');
+    }
+
+    // Logout
+    function logout() {
+      localStorage.removeItem('token');
+      localStorage.removeItem('name');
+      location.reload();
+    }
+  </script>
+
+</body>
+</html>

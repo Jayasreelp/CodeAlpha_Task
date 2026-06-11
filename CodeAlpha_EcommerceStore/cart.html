@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cart - ShopEasy</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <h1>🛒 ShopEasy</h1>
+    <div class="nav-links">
+      <a href="/">Home</a>
+      <a href="/login" id="login-btn">Login</a>
+      <a href="#" id="logout-btn" onclick="logout()" style="display:none">Logout</a>
+    </div>
+  </nav>
+
+  <!-- Cart Section -->
+  <div class="container">
+    <h2 class="section-title">🛍️ Your Cart</h2>
+    <div id="cart-items"></div>
+    <div id="cart-total" class="cart-total"></div>
+    <button id="order-btn" onclick="placeOrder()" style="display:none" class="order-btn">
+      Place Order ✅
+    </button>
+    <p id="order-msg" style="color:green; text-align:center; font-size:20px"></p>
+  </div>
+
+  <script>
+    // Check login
+    const token = localStorage.getItem('token');
+    const name = localStorage.getItem('name');
+    if (token) {
+      document.getElementById('login-btn').style.display = 'none';
+      document.getElementById('logout-btn').style.display = 'inline';
+    }
+
+    // Load cart items
+    const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+    const cartDiv = document.getElementById('cart-items');
+    const totalDiv = document.getElementById('cart-total');
+    const orderBtn = document.getElementById('order-btn');
+
+    if (cart.length === 0) {
+      cartDiv.innerHTML = '<p style="text-align:center; font-size:20px">Your cart is empty! <a href="/">Shop Now</a></p>';
+    } else {
+      let total = 0;
+      cart.forEach((item, index) => {
+        total += item.price;
+        cartDiv.innerHTML += `
+          <div class="cart-item">
+            <h3>${item.name}</h3>
+            <p class="price">₹${item.price}</p>
+            <button onclick="removeItem(${index})" class="remove-btn">Remove ❌</button>
+          </div>
+        `;
+      });
+      totalDiv.innerHTML = `<h3>Total: ₹${total}</h3>`;
+      orderBtn.style.display = 'block';
+    }
+
+    // Remove item
+    function removeItem(index) {
+      cart.splice(index, 1);
+      localStorage.setItem('cart', JSON.stringify(cart));
+      location.reload();
+    }
+
+    // Place order
+    async function placeOrder() {
+      if (!token) {
+        alert('Please login first to place order!');
+        window.location.href = '/login';
+        return;
+      }
+
+      const total = cart.reduce((sum, item) => sum + item.price, 0);
+
+      const res = await fetch('/order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user: name,
+          products: cart,
+          total: total
+        })
+      });
+
+      const data = await res.json();
+      document.getElementById('order-msg').innerText = '🎉 ' + data.message;
+      localStorage.removeItem('cart');
+
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 2000);
+    }
+
+    // Logout
+    function logout() {
+      localStorage.removeItem('token');
+      localStorage.removeItem('name');
+      window.location.href = '/';
+    }
+  </script>
+
+</body>
+</html>
